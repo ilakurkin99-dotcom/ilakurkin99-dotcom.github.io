@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="theme-color" content="#0c0d10">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>CHIIKAWA: GTA 5 RP | ТУЛЕВО НА ПОЛИГОНЕ</title>
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="assets/icon-192.png">
+    <link rel="stylesheet" href="style.css?v=3">
+    <!-- Local Three.js and FBX Loader for 100% offline & zero-lag performance -->
+    <script src="libs/three.min.js"></script>
+    <script src="libs/fflate.min.js"></script>
+    <script src="libs/FBXLoader.js"></script>
+</head>
+<body>
+    <!-- 3D Canvas -->
+    <canvas id="game-canvas"></canvas>
+
+    <!-- Touch Look & Camera Swipe Zone (Covers whole screen for touch swipe) -->
+    <div id="touch-look-zone"></div>
+
+    <!-- UI Overlay Layer -->
+    <div id="ui-container">
+        <!-- Top Left: Settings & HUD customization buttons -->
+        <div id="top-left-tools">
+            <button id="cam-settings-btn" class="cam-settings-toggle-btn">НАСТРОЙКИ [ C ]</button>
+            <button id="open-hud-editor-btn" class="cam-settings-toggle-btn hud-btn-highlight">КАСТОМИЗАЦИЯ HUD</button>
+        </div>
+
+        <div id="top-banner">
+            <div class="server-title">CHIIKAWA // TUELVO</div>
+            <div class="score-board">
+                <span class="team-name team-player">CHIIKAWA</span>
+                <span id="score-player" class="score-num">0</span>
+                <span class="score-divider">:</span>
+                <span id="score-bots" class="score-num">0</span>
+                <span class="team-name team-enemy">USAGI</span>
+            </div>
+            <div class="sub-info">1v1 ACHROMATIC AIM DUEL · FIRST TO 10 KILLS</div>
+        </div>
+
+        <!-- Top Right Killfeed -->
+        <div id="killfeed"></div>
+
+        <!-- Crosshair & Redux Hitmarker (Center Screen) -->
+        <div id="crosshair-wrapper">
+            <div id="crosshair">
+                <div class="dot"></div>
+                <div class="line top"></div>
+                <div class="line bottom"></div>
+                <div class="line left"></div>
+                <div class="line right"></div>
+            </div>
+            <!-- X-Hitmarker -->
+            <div id="hitmarker" class="hitmarker">
+                <div class="hit-line l1"></div>
+                <div class="hit-line l2"></div>
+            </div>
+        </div>
+
+        <!-- Sniper Scope Overlay (.50 BMG) -->
+        <div id="sniper-scope">
+            <div class="scope-vignette"></div>
+            <div class="scope-lens">
+                <div class="scope-cross-h"></div>
+                <div class="scope-cross-v"></div>
+                <div class="scope-circle"></div>
+                <div class="scope-dot"></div>
+                <div class="scope-text">HEAVY SNIPER .50 BMG</div>
+            </div>
+        </div>
+
+        <!-- Red Damage Vignette -->
+        <div id="damage-vignette"></div>
+
+        <!-- Bottom Left: GTA RP Health & Armor HUD -->
+        <div id="bottom-left-hud">
+            <div class="player-identity">
+                <div class="player-badge">1v1</div>
+                <div class="player-name">CHIIKAWA</div>
+            </div>
+
+            <!-- Health Bar -->
+            <div class="bar-container hp-bar">
+                <div class="bar-label">HP <span id="hp-text">100</span></div>
+                <div class="bar-track">
+                    <div id="hp-trail" class="bar-trail"></div>
+                    <div id="hp-fill" class="bar-fill"></div>
+                </div>
+            </div>
+
+            <!-- Armor Bar -->
+            <div class="bar-container armor-bar">
+                <div class="bar-label">ARMOR <span id="armor-text">100</span></div>
+                <div class="bar-track">
+                    <div id="armor-trail" class="bar-trail"></div>
+                    <div id="armor-fill" class="bar-fill"></div>
+                </div>
+            </div>
+
+            <!-- Consumables & Roll Status -->
+            <div class="consumables-row">
+                <div class="consumable-item">
+                    <div class="key-badge">G</div>
+                    <div class="consumable-info">
+                        <span class="consumable-title">БРОНЕЖИЛЕТ</span>
+                        <div class="cooldown-mini-track">
+                            <div id="armor-cd-bar" class="cooldown-mini-fill"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="consumable-item">
+                    <div class="key-badge">X</div>
+                    <div class="consumable-info">
+                        <span class="consumable-title">АПТЕЧКА</span>
+                        <div class="cooldown-mini-track">
+                            <div id="medkit-cd-bar" class="cooldown-mini-fill"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="roll-status" class="roll-status ready">
+                    ПЕРЕКАТ [SPACE] · ГОТОВ
+                </div>
+            </div>
+        </div>
+
+        <!-- Bottom Right: Weapon Selector & Ammo HUD -->
+        <div id="bottom-right-hud">
+            <div class="weapon-info-header">
+                <div id="weapon-tier" class="weapon-tier">.44 HEAVY REVOLVER</div>
+                <div id="weapon-name" class="weapon-name">Тяжёлый револьвер</div>
+            </div>
+
+            <div class="ammo-counter">
+                <span id="ammo-current">6</span>
+                <span id="ammo-reserve">/ 60</span>
+            </div>
+
+            <!-- Weapon Slots -->
+            <div class="weapon-slots">
+                <div class="weapon-slot active" data-slot="0">
+                    <span class="slot-key">1</span>
+                    <span class="slot-title">РЕВЕР</span>
+                </div>
+                <div class="weapon-slot" data-slot="1">
+                    <span class="slot-key">2</span>
+                    <span class="slot-title">КАРАБИН</span>
+                </div>
+                <div class="weapon-slot" data-slot="2">
+                    <span class="slot-key">3</span>
+                    <span class="slot-title">ХЕВИК</span>
+                </div>
+            </div>
+
+            <div class="swap-hint">
+                <span class="key-badge small">Q</span> QUICK SWAP · СБРОС ЗАДЕРЖКИ
+            </div>
+        </div>
+
+        <!-- HUD Customizer Editor Toolbar (Active during HUD Edit Mode) -->
+        <div id="hud-customizer-bar" class="hidden">
+            <div class="hud-bar-left">
+                <div class="hud-bar-title">КАСТОМИЗАЦИЯ HUD</div>
+                <div id="hud-selected-element-name" class="hud-bar-target">ВЫБЕРИТЕ ЭЛЕМЕНТ</div>
+            </div>
+
+            <div class="hud-bar-center">
+                <div class="hud-slider-group">
+                    <span class="hud-slider-lbl">РАЗМЕР:</span>
+                    <input type="range" id="hud-scale-slider" min="0.6" max="1.8" step="0.05" value="1.0">
+                    <span id="hud-scale-val" class="hud-val-text">100%</span>
+                </div>
+                <div class="hud-slider-group">
+                    <span class="hud-slider-lbl">ПРОЗРАЧНОСТЬ:</span>
+                    <input type="range" id="hud-opacity-slider" min="0.2" max="1.0" step="0.05" value="0.85">
+                    <span id="hud-opacity-val" class="hud-val-text">85%</span>
+                </div>
+            </div>
+
+            <div class="hud-bar-right">
+                <button id="hud-reset-btn" class="hud-bar-btn secondary">СБРОС</button>
+                <button id="hud-save-btn" class="hud-bar-btn primary">СОХРАНИТЬ</button>
+                <button id="hud-close-btn" class="hud-bar-btn close">✕</button>
+            </div>
+        </div>
+
+        <!-- Mobile Touch Controls Layer -->
+        <div id="mobile-controls-layer">
+            <!-- Virtual Joystick Zone (Analog WASD movement) -->
+            <div id="touch-joystick-zone">
+                <div id="joystick-base">
+                    <div id="joystick-knob"></div>
+                </div>
+            </div>
+
+            <!-- Mobile Consumables (Armor G & Medkit X) -->
+            <div id="mobile-consumables">
+                <button id="btn-armor" class="mob-touch-btn mob-btn-consumable" title="Бронежилет">
+                    <span class="mob-btn-icon">🛡</span>
+                    <span class="mob-btn-label">БРОНЯ</span>
+                </button>
+                <button id="btn-medkit" class="mob-touch-btn mob-btn-consumable" title="Аптечка">
+                    <span class="mob-btn-icon">✚</span>
+                    <span class="mob-btn-label">ХИЛКА</span>
+                </button>
+            </div>
+
+            <!-- Mobile Quick Weapons Bar (Slots 1, 2, 3 and Quick Swap Q) -->
+            <div id="mobile-weapons-bar">
+                <div id="mob-slot-0" class="mob-wep-btn active" title="Револьвер">
+                    <span class="mob-wep-num">1</span>
+                    <span class="mob-wep-name">РЕВЕР</span>
+                </div>
+                <div id="mob-slot-1" class="mob-wep-btn" title="Карабин">
+                    <span class="mob-wep-num">2</span>
+                    <span class="mob-wep-name">КАРАБИН</span>
+                </div>
+                <div id="mob-slot-2" class="mob-wep-btn" title="Снайперка">
+                    <span class="mob-wep-num">3</span>
+                    <span class="mob-wep-name">ХЕВИК</span>
+                </div>
+                <div id="mob-btn-swap" class="mob-wep-btn mob-wep-swap" title="Quick Swap">
+                    <span class="mob-wep-num">Q</span>
+                    <span class="mob-wep-name">SWAP</span>
+                </div>
+            </div>
+
+            <!-- Action Buttons Right Side -->
+            <button id="btn-fire" class="mob-touch-btn mob-btn-fire" title="Огонь">
+                <div class="mob-fire-ring"></div>
+                <span class="mob-btn-label">FIRE</span>
+            </button>
+
+            <button id="btn-aim" class="mob-touch-btn mob-btn-aim" title="Прицел (ADS)">
+                <span class="mob-btn-icon">⌖</span>
+                <span class="mob-btn-label">AIM</span>
+            </button>
+
+            <button id="btn-roll" class="mob-touch-btn mob-btn-roll" title="Комбат-перекат">
+                <span class="mob-btn-icon">↻</span>
+                <span class="mob-btn-label">ROLL</span>
+            </button>
+
+            <button id="btn-reload" class="mob-touch-btn mob-btn-reload" title="Перезарядка">
+                <span class="mob-btn-icon">⟳</span>
+                <span class="mob-btn-label">RELOAD</span>
+            </button>
+
+            <button id="btn-shoulder" class="mob-touch-btn mob-btn-shoulder" title="Смена плеча">
+                <span class="mob-btn-icon">⇄</span>
+                <span class="mob-btn-label">CAM</span>
+            </button>
+        </div>
+
+        <!-- Death Screen -->
+        <div id="death-screen">
+            <div class="wasted-banner">РАУНД ПРОИГРАН</div>
+            <div class="wasted-sub">НАЖМИТЕ <span class="highlight">[ R ]</span> ДЛЯ МГНОВЕННОГО РЕСПАВНА</div>
+        </div>
+
+        <!-- Camera Settings Modal [C] -->
+        <div id="cam-modal" class="cam-modal-overlay hidden">
+            <div class="cam-modal-card">
+                <div class="cam-modal-header">
+                    <div class="cam-modal-title">КОНФИГУРАЦИЯ КАМЕРЫ И УПРАВЛЕНИЯ</div>
+                    <button id="cam-close-btn" class="cam-modal-close-btn">✕</button>
+                </div>
+                <div class="cam-modal-body">
+                    <!-- Distance -->
+                    <div class="cam-setting-group">
+                        <div class="cam-setting-label">
+                            <span>Дистанция камеры:</span>
+                            <span id="cam-dist-val" class="cam-val-badge">1.25m</span>
+                        </div>
+                        <input type="range" id="cam-dist" min="0.60" max="2.80" step="0.05" value="1.25">
+                    </div>
+
+                    <!-- Height -->
+                    <div class="cam-setting-group">
+                        <div class="cam-setting-label">
+                            <span>Высота камеры:</span>
+                            <span id="cam-height-val" class="cam-val-badge">0.58m</span>
+                        </div>
+                        <input type="range" id="cam-height" min="0.20" max="1.30" step="0.05" value="0.58">
+                    </div>
+
+                    <!-- Shoulder Offset -->
+                    <div class="cam-setting-group">
+                        <div class="cam-setting-label">
+                            <span>Смещение плеча:</span>
+                            <span id="cam-shoulder-val" class="cam-val-badge">0.38m</span>
+                        </div>
+                        <input type="range" id="cam-shoulder" min="0.10" max="0.80" step="0.05" value="0.38">
+                    </div>
+
+                    <!-- FOV -->
+                    <div class="cam-setting-group">
+                        <div class="cam-setting-label">
+                            <span>Поле зрения (FOV):</span>
+                            <span id="cam-fov-val" class="cam-val-badge">68°</span>
+                        </div>
+                        <input type="range" id="cam-fov" min="50" max="105" step="1" value="68">
+                    </div>
+
+                    <!-- Sensitivity -->
+                    <div class="cam-setting-group">
+                        <div class="cam-setting-label">
+                            <span>Чувствительность мыши:</span>
+                            <span id="cam-sens-val" class="cam-val-badge">1.2</span>
+                        </div>
+                        <input type="range" id="cam-sens" min="0.4" max="3.0" step="0.1" value="1.2">
+                    </div>
+
+                    <!-- Invert Toggles -->
+                    <div class="cam-toggles-row">
+                        <label class="cam-checkbox-label">
+                            <input type="checkbox" id="cam-invert-y">
+                            <span>Инвертировать мышь по вертикали (Y)</span>
+                        </label>
+                        <label class="cam-checkbox-label">
+                            <input type="checkbox" id="cam-invert-x">
+                            <span>Инвертировать мышь по горизонтали (X)</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="cam-modal-footer">
+                    <button id="cam-reset-btn" class="cam-btn secondary">СБРОСИТЬ ПО УМОЛЧАНИЮ</button>
+                    <button id="cam-done-btn" class="cam-btn primary">ПРИМЕНИТЬ И ЗАКРЫТЬ [ C ]</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Start / Instructions Modal -->
+        <div id="start-modal">
+            <div class="modal-card">
+                <div class="modal-header">
+                    <span class="tag">COMPETITIVE AIM DUEL</span>
+                    <h1>ЧИИКАВА ПРОТИВ УСАГИ</h1>
+                    <p class="subtitle">СОРЕВНОВАТЕЛЬНАЯ АХРОМАТИЧЕСКАЯ АРЕНА · МЕХАНИКА GTA 5 RP</p>
+                </div>
+
+                <div class="controls-grid">
+                    <div class="ctrl-col">
+                        <h3>МУВМЕНТ И КАМЕРА</h3>
+                        <div class="ctrl-row"><kbd>WASD</kbd> <span>Свободный бег 360° / A-D стрейфы</span></div>
+                        <div class="ctrl-row"><kbd>Shift</kbd> <span>Тактический спринт</span></div>
+                        <div class="ctrl-row"><kbd>ПКМ</kbd> <span>Боевая стойка и фиксация взгляда</span></div>
+                        <div class="ctrl-row"><kbd>Space + ПКМ</kbd> <span class="accent">Комбат-перекат (I-Frames)</span></div>
+                        <div class="ctrl-row"><kbd>E</kbd> / <kbd>Колесо</kbd> <span>Смена активного плеча</span></div>
+                        <div class="ctrl-row"><kbd>C</kbd> <span class="accent">Панель настройки камеры</span></div>
+                    </div>
+
+                    <div class="ctrl-col">
+                        <h3>СТРЕЛЬБА И ЭКИПИРОВКА</h3>
+                        <div class="ctrl-row"><kbd>ЛКМ</kbd> <span>Стрельба / Зажим</span></div>
+                        <div class="ctrl-row"><kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> <span>Револьвер / Карабин / Снайперка</span></div>
+                        <div class="ctrl-row"><kbd>Q</kbd> <span class="accent">Quick Swap (сброс КД ревика)</span></div>
+                        <div class="ctrl-row"><kbd>G</kbd> <span>Бронежилет (100 AP)</span></div>
+                        <div class="ctrl-row"><kbd>X</kbd> <span>Аптечка (+50 HP)</span></div>
+                        <div class="ctrl-row"><kbd>R</kbd> <span>Перезарядка / Респавн</span></div>
+                    </div>
+                </div>
+
+                <div class="settings-row">
+                    <label for="sens-slider">ЧУВСТВИТЕЛЬНОСТЬ МЫШИ:</label>
+                    <input type="range" id="sens-slider" min="0.5" max="3.0" step="0.1" value="1.2">
+                </div>
+
+                <button id="start-btn" class="start-btn">ВОЙТИ НА АРЕНУ [ ЛКМ ]</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Module Entry -->
+    <script type="module" src="src/main.js"></script>
+
+    <script>
+        // Dismiss start modal on click or touch
+        const startModal = document.getElementById('start-modal');
+        const startBtn = document.getElementById('start-btn');
+        const dismissStart = () => {
+            if (startModal) {
+                startModal.style.opacity = '0';
+                startModal.style.pointerEvents = 'none';
+                setTimeout(() => startModal.remove(), 300);
+            }
+        };
+        if (startBtn) {
+            startBtn.addEventListener('click', dismissStart);
+            startBtn.addEventListener('touchstart', dismissStart, { passive: true });
+        }
+
+        // Register Progressive Web App Service Worker
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js').catch(err => console.log('SW reg failed', err));
+            });
+        }
+    </script>
+</body>
+</html>
